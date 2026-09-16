@@ -111,3 +111,25 @@ You're free to improve on this structure or restructure it entirely -- what matt
 ## Dataset
 
 See `data/README.md`.
+
+
+
+## Name and Number
+
+Name: João Guilherme Teixeira Pinto Santos Silva
+Number: 20260492
+
+
+## Result Comparison 
+
+Logistic regression scores:
+  Train accuracy: 0.679
+  Test accuracy:  0.676
+  Gap (train - test): +0.004
+
+Decision Three scores:
+  Train accuracy: 0.829
+  Test accuracy:  0.631
+  Gap (train - test): +0.198
+
+The best model is the Logitic regression because it had the best test accuracy and the decision three is overfitting
