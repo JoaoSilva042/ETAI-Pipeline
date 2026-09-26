@@ -66,6 +66,7 @@ def clean_dataset(
     for col, rule in validity_rules.items():
         if col not in out.columns:
             continue
+        
         out[col] = pd.to_numeric(
             out[col],
             errors="coerce",
