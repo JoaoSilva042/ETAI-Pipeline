@@ -4,8 +4,11 @@
 data:
   path: "data/compas_two_year_recidivism.csv"
   target: "two_year_recid"
-  sensitive_attr: "race"          # excluded from model features, used only to audit fairness
-  drop_columns: ["id", "decile_score", "score_text"]  # identifiers / COMPAS's own score, not our model's inputs
+  sensitive_attr: "race"
+  drop_columns:
+    - "id"
+    - "decile_score"
+    - "score_text"
 
 
 diagnostics:
@@ -23,58 +26,72 @@ diagnostics:
     - "na"
     - "NA"
     - ""
+    - "nan"
 
   validity_rules:
     age:
       min: 18
       max: 100
+
     decile_score:
       min: 1
       max: 10
+
     juv_fel_count:
       min: 0
+
     priors_count:
       min: 0
       max: 60
 
-    category_mappings:
-      sex:
-        male: "Male"
-        female: "Female"
+  canonical_categories:
+    sex:
+      male: "Male"
+      female: "Female"
 
-      race:
-        african-american: "African-American"
-        african american: "African-American"
-        caucasian: "Caucasian"
-        hispanic: "Hispanic"
-        other: "Other"
-        asian: "Asian"
-        native american: "Native American"
+    race:
+      african-american: "African-American"
+      african american: "African-American"
+      caucasian: "Caucasian"
+      hispanic: "Hispanic"
+      other: "Other"
+      asian: "Asian"
+      native american: "Native American"
 
-      c_charge_degree:
-        f: "F"
-        felony: "F"
-        m: "M"
-        misdemeanor: "M"
+    c_charge_degree:
+      f: "F"
+      felony: "F"
+      m: "M"
+      misdemeanor: "M"
 
-      score_text:
-        low: "Low"
-        medium: "Medium"
-        high: "High"
+    score_text:
+      low: "Low"
+      medium: "Medium"
+      high: "High"
 
-    columns_to_drop:
-      - "prior_offenses"
-      - "age_in_months"
-      - "juvenile_total"
-      - "id"
+  redundant_columns:
+    - "prior_offenses"
+    - "age_in_months"
+    - "juvenile_total"
 
-split:
-  test_size: 0.2
+
+test_set:
+  size: 0.2
   random_state: 42
+
+
+cv:
+  n_splits: 5
+  shuffle: true
+  random_state: 42
+  scoring: "accuracy"
+  n_jobs: 1
+
 
 preprocessing:
   encoder: "target"
   scaler: "standard"
+  random_state: 42
 
   numeric_features:
     - "age"
@@ -96,10 +113,12 @@ preprocessing:
     numeric_strategy: "median"
     categorical_strategy: "most_frequent"
 
+
 model:
-  type: "decision_tree"   # or "decision_tree"
+  type: "random_forest"
   params:
     random_state: 42
- 
+
+
 output:
-  results_dir: "results"   # each run's full report is saved here as a timestamped .txt file
+  results_dir: "results"

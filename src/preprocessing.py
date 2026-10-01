@@ -20,12 +20,13 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import (
     OneHotEncoder,
     OrdinalEncoder,
+    TargetEncoder,
     StandardScaler,
     MinMaxScaler,
     RobustScaler,
 )
 
-from category_encoders import CountEncoder, TargetEncoder
+from category_encoders import CountEncoder
 
 
 
@@ -40,6 +41,12 @@ def clean_dataset(
         diagnostics_config.get("placeholder_tokens", [])
     )
 
+    normalized_placeholders = {
+        str(token).strip().lower()
+        for token in placeholder_tokens
+    }
+
+    
     for col in out.columns:
         normalized = (
             out[col]
@@ -49,40 +56,59 @@ def clean_dataset(
         )
 
         placeholder_mask = normalized.isin(
-            {str(token).strip().lower() for token in placeholder_tokens}
+            normalized_placeholders
         )
 
         out.loc[placeholder_mask, col] = np.nan
 
-    for col in diagnostics_config.get("numeric_text_columns", []):
+    
+    for col in diagnostics_config.get(
+        "numeric_text_columns",
+        [],
+    ):
         if col in out.columns:
             out[col] = pd.to_numeric(
                 out[col],
                 errors="coerce",
             )
 
-    validity_rules = diagnostics_config.get("validity_rules", {})
+    
+    validity_rules = diagnostics_config.get(
+        "validity_rules",
+        {},
+    )
 
     for col, rule in validity_rules.items():
         if col not in out.columns:
             continue
-        
+
         out[col] = pd.to_numeric(
             out[col],
             errors="coerce",
         )
 
         if "min" in rule:
-            out.loc[out[col] < rule["min"], col] = np.nan
+            out.loc[
+                out[col] < rule["min"],
+                col,
+            ] = np.nan
 
         if "max" in rule:
-            out.loc[out[col] > rule["max"], col] = np.nan
+            out.loc[
+                out[col] > rule["max"],
+                col,
+            ] = np.nan
 
-
-    category_mappings = diagnostics_config.get("category_mappings", {})
+    # Canonicalize categorical values.
+    category_mappings = diagnostics_config.get(
+        "canonical_categories",
+        diagnostics_config.get(
+            "category_mappings",
+            {},
+        ),
+    )
 
     for col, mapping in category_mappings.items():
-
         if col not in out.columns:
             continue
 
@@ -93,29 +119,49 @@ def clean_dataset(
             .str.lower()
         )
 
-        out[col] = normalized.map(mapping).fillna(out[col])
+        mapped = normalized.map(mapping)
 
-    out = out.drop_duplicates()
+        out[col] = mapped.fillna(out[col])
 
-    id_column = diagnostics_config.get("id_column")
+    
+    columns_to_drop = diagnostics_config.get(
+        "redundant_columns",
+        diagnostics_config.get(
+            "columns_to_drop",
+            [],
+        ),
+    )
+
+    existing_columns_to_drop = [
+        col
+        for col in columns_to_drop
+        if col in out.columns
+    ]
+
+    out = out.drop(
+        columns=existing_columns_to_drop
+    )
+
+    return out
+
+
+
+def drop_duplicate_rows(
+    df: pd.DataFrame,
+    id_column: str | None = None,
+) -> pd.DataFrame:
+
+    out = df.drop_duplicates()
 
     if id_column and id_column in out.columns:
         out = out.drop_duplicates(
             subset=id_column,
-            keep="first"
+            keep="first",
         )
 
-    columns_to_drop = diagnostics_config.get("columns_to_drop", [])
-
-    existing_columns_to_drop = [
-        col for col in columns_to_drop
-        if col in out.columns
-    ]
-
-    out = out.drop(columns=existing_columns_to_drop)
-
-
     return out
+
+
 
 def split_features_target(
     df: pd.DataFrame,
@@ -174,20 +220,29 @@ def add_missingness_indicators(
 
     return out
 
-def split_data(
+def split_dev_test(
     X: pd.DataFrame,
     y: pd.Series,
     extras: pd.DataFrame,
     test_size: float,
     random_state: int,
 ):
-    return train_test_split(
+    X_dev, X_test, y_dev, y_test, extras_dev, extras_test = train_test_split(
         X,
         y,
         extras,
         test_size=test_size,
         random_state=random_state,
         stratify=y,
+    )
+
+    return (
+        X_dev,
+        X_test,
+        y_dev,
+        y_test,
+        extras_dev,
+        extras_test,
     )
 
 _SCALERS = {
@@ -198,25 +253,28 @@ _SCALERS = {
 }
 
 _ENCODERS = {
-    "onehot": lambda: OneHotEncoder(
+    "onehot": lambda seed: OneHotEncoder(
         handle_unknown="ignore",
         sparse_output=False,
     ),
 
-    "ordinal": lambda: OrdinalEncoder(
+    "ordinal": lambda seed: OrdinalEncoder(
         handle_unknown="use_encoded_value",
         unknown_value=-1,
     ),
 
-    "count": lambda: CountEncoder(
+    "count": lambda seed: CountEncoder(
         handle_unknown=0,
         handle_missing=0,
     ),
 
-    "target": lambda: TargetEncoder(
-        handle_unknown="value",
-        handle_missing="value",
+    "target": lambda seed: TargetEncoder(
+        target_type="binary",
+        cv=5,
+        shuffle=True,
+        random_state=seed,
     ),
+
 }
 
 def build_preprocessor(
@@ -247,7 +305,8 @@ def build_preprocessor(
         else scaler_factory
     )
 
-    encoder = _ENCODERS[encoder_name]()
+    seed = preprocessing_config.get("random_state", 42)
+    encoder = _ENCODERS[encoder_name](seed)
 
     numeric_pipeline = Pipeline([
         (
