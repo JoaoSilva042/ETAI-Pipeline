@@ -32,6 +32,12 @@ from src.evaluate import (
     fairness_report,
 )
 
+from src.tuning import (
+    tune_pipeline,
+    nested_cross_validate,
+    tuning_report,
+)
+
 from src.results import save_run
 
 
@@ -110,10 +116,54 @@ def main():
     )
 
     scoring = cv_config.get("scoring", "accuracy", )
+    n_jobs = cv_config.get("n_jobs", 1)
 
-    fold_scores, y_oof = cross_validate_pipeline(pipeline,X_dev,y_dev,cv, scoring, n_jobs=cv_config.get("n_jobs", 1),)
+    fold_scores, y_oof = cross_validate_pipeline(pipeline,X_dev,y_dev,cv, scoring, n_jobs=n_jobs)
 
     report = cv_report( fold_scores,scoring,)
+
+    # Week 5: hyperparameter tuning
+    tuning_config = config.get("tuning", {})
+
+    if tuning_config.get("enabled", False):
+        model_type = config["model"]["type"]
+        search_spaces = tuning_config.get("search_spaces", {})
+
+        if model_type not in search_spaces:
+            raise ValueError(
+                f"No tuning search space configured for model '{model_type}'."
+            )
+
+        search_space = search_spaces[model_type]
+        n_trials = tuning_config["n_trials"]
+        tuning_seed = tuning_config["random_state"]
+
+        inner_cv = StratifiedKFold(
+            n_splits=tuning_config["n_splits"],
+            shuffle=True,
+            random_state=tuning_seed,
+        )
+
+        print("\nNested cross-validation (tuned model)\n")
+
+        nested_scores, y_oof = nested_cross_validate(
+            pipeline, X_dev, y_dev, cv, inner_cv, scoring,
+            search_space, n_trials, tuning_seed, n_jobs=n_jobs
+        )
+
+        nested_report = cv_report(nested_scores, scoring)
+        report += "\n\nNested cross-validation (tuned model)\n" + nested_report
+
+        pipeline, study = tune_pipeline(
+            pipeline, X_dev, y_dev, inner_cv, scoring,
+            search_space, n_trials, tuning_seed, n_jobs=n_jobs
+        )
+
+        tuning_text = tuning_report(study, nested_scores, scoring)
+        report += "\n\n" + tuning_text
+    
+    
+
 
     report += "\n\n" + oof_classification_report(y_dev, y_oof,)
 

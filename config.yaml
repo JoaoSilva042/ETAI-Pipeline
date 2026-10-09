@@ -115,9 +115,35 @@ preprocessing:
 
 
 model:
-  type: "random_forest"
+  type: "decision_tree"
   params:
     random_state: 42
+
+
+tuning:
+  enabled: true
+  n_trials: 30
+  n_splits: 5
+  random_state: 42
+
+  search_spaces:
+    decision_tree:
+      model__max_depth:
+        type: int
+        low: 1
+        high: 20
+
+      model__min_samples_leaf:
+        type: int
+        low: 1
+        high: 200
+        log: true
+
+      model__criterion:
+        type: categorical
+        choices:
+          - "gini"
+          - "entropy"
 
 
 output:

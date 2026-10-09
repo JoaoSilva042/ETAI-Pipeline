@@ -20,6 +20,18 @@ def save_run(results_dir: str, config: dict, report_text: str) -> str:
 
     cv = config["cv"]
 
+    tuning = config.get("tuning", {})
+
+    if tuning.get("enabled", False):
+        tuning_line = (
+            f"Tuning: enabled=True  "
+            f"trials={tuning['n_trials']}  "
+            f"inner_folds={tuning['n_splits']}  "
+            f"random_state={tuning['random_state']}\n"
+        )
+    else:
+        tuning_line = "Tuning: enabled=False\n"
+
     header = (
         f"Run: {timestamp}\n"
         f"Model: {config['model']['type']}  params={config['model'].get('params')}\n"
@@ -29,7 +41,8 @@ def save_run(results_dir: str, config: dict, report_text: str) -> str:
         f"shuffle={cv.get('shuffle', True)}  "
         f"random_state={cv.get('random_state')}  "
         f"metric={cv.get('scoring', 'accuracy')}\n"
-        f"Locked test set: size={config['test_set']['size']}  "
+        + tuning_line
+        + f"Locked test set: size={config['test_set']['size']}  "
         f"random_state={config['test_set']['random_state']}  "
         f"(not evaluated)\n"
         + "=" * 60 + "\n\n"

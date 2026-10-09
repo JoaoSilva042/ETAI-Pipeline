@@ -5,3 +5,4 @@ PyYAML>=6.0
 category-encoders
 scipy
 statsmodels
+optuna>=4.0
