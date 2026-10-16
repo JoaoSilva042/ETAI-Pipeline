@@ -4,6 +4,7 @@ import pandas as pd
 
 from sklearn.metrics import classification_report
 from sklearn.model_selection import cross_validate
+from scipy import stats
 
 
 def cross_validate_pipeline(
@@ -82,6 +83,45 @@ def cv_report(
     print(text)
 
     return text
+
+def corrected_paired_test(
+    scores_a,
+    scores_b,
+    test_train_ratio: float,
+) -> dict:
+
+    diff = (
+        np.asarray(scores_a, dtype=float)
+        - np.asarray(scores_b, dtype=float)
+    )
+
+    if diff.ndim != 1 or len(diff) < 2:
+        raise ValueError(
+            "Provide at least two paired fold scores."
+        )
+
+    k = len(diff)
+
+    se = np.sqrt(
+        (1 / k + test_train_ratio)
+        * diff.var(ddof=1)
+    )
+
+    if se > 0:
+        t = float(diff.mean() / se)
+        p_value = float(
+            2 * stats.t.sf(abs(t), df=k - 1)
+        )
+    else:
+        t = 0.0
+        p_value = 1.0
+
+    return {
+        "mean_diff": float(diff.mean()),
+        "wins": f"{int((diff > 0).sum())}/{k}",
+        "t": t,
+        "p_value": p_value,
+    }
 
 def oof_classification_report(
     y_true,

@@ -11,7 +11,7 @@ This orchestrates the full (deliberately simple) pipeline:
 import yaml
 
 from sklearn.model_selection import StratifiedKFold
-from sklearn.pipeline import Pipeline
+
 
 from src.data import load_data
 
@@ -20,10 +20,9 @@ from src.preprocessing import (
     drop_duplicate_rows,
     split_features_target,
     split_dev_test,
-    build_preprocessor,
 )
 
-from src.model import build_model
+from src.model import build_pipeline
 
 from src.evaluate import (
     cross_validate_pipeline,
@@ -86,18 +85,10 @@ def main():
         random_state=config["test_set"]["random_state"],
     )
 
-    preprocessor = build_preprocessor(
-        config["preprocessing"]
+    pipeline = build_pipeline(
+        config["preprocessing"],
+        config["model"],
     )
-
-    model = build_model(
-        config["model"]
-    )
-
-    pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        ("model", model),
-    ])
 
     
 
