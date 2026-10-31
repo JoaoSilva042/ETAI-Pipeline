@@ -120,7 +120,7 @@ Name: João Guilherme Teixeira Pinto Santos Silva
 Number: 20260492
 
 
-## Result Comparison 
+## Result Comparison Week 02
 
 Logistic regression scores:
   Train accuracy: 0.679
@@ -133,3 +133,44 @@ Decision Three scores:
   Gap (train - test): +0.198
 
 The best model is the Logitic regression because it had the best test accuracy and the decision three is overfitting
+
+
+## Week 03 - Data Quality and Preprocessing
+
+ Checked missing values, invalid values and redundant columns. Also added data cleaning, imputation and different encoding and scaling options. The main improvement is that we can handle missing and inconsistent data instead of simply dropping rows.
+
+## Week 04 - Cross-Validation
+
+I added 5-fold stratified cross-validation and separated 20% of the dataset as a locked test set.
+Cross-validation gives a more reliable estimate than using only one split. Comparing train and validation scores also helps us detect overfitting
+
+
+## Week 05 - Hyperparameter Tuning
+ Optuna with 30 trials and nested cross-validation was inserted to tune the Decision Tree
+
+Decision Tree before tuning:
+  -Train accuracy: 0.695
+  -Validation accuracy: 0.609
+  -Gap (train - validation): +0.086
+
+Decision Tree after tuning:
+  -Train accuracy: 0.684
+  -Validation accuracy: 0.675
+  -Gap (train - validation): +0.009
+
+The tuned Decision Tree has better validation accuracy and a much smaller gap. This suggests that tuning reduced overfitting and improved generalization.
+
+## Week 06 - Ensemble Learning
+Inserted Random Forest, Oblique Random Forest and AdaBoost, their tuning search spaces, and a corrected paired statistical test. Oblique Random Forest was tested with 30 Optuna trials.
+
+Oblique Random Forest before tuning:
+  -Train accuracy: 0.759
+  -Validation accuracy: 0.643
+  -Gap (train - validation): +0.116
+
+Oblique Random Forest after tuning:
+  -Train accuracy: 0.691
+  -Validation accuracy: 0.681
+  -Gap (train - validation): +0.010
+
+The tuned Oblique Random Forest has better validation accuracy and less overfitting. It also performed slightly better than the tuned Decision Tree (0.681 vs 0.675), but the difference was not statistically significant in our corrected paired test.
