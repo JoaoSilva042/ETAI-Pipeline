@@ -174,3 +174,29 @@ Oblique Random Forest after tuning:
   -Gap (train - validation): +0.010
 
 The tuned Oblique Random Forest has better validation accuracy and less overfitting. It also performed slightly better than the tuned Decision Tree (0.681 vs 0.675), but the difference was not statistically significant in our corrected paired test.
+
+
+## Week 07 - Gradient Boosting and Model Evaluation
+
+Added Gradient Boosting, Histogram Gradient Boosting and Gaussian Naive Bayes. The pipeline now calculates multiple evaluation metrics, uses ROC-AUC for Optuna tuning and saves experiment comparisons in `results/runs.csv`.
+
+
+Gradient Boosting:
+- ROC-AUC: 0.728
+- Accuracy: 0.682
+- Recall: 0.559
+- F1-score: 0.613
+
+Histogram Gradient Boosting:
+- ROC-AUC: 0.728
+- Accuracy: 0.685
+- Recall: 0.567
+- F1-score: 0.618
+
+Gaussian Naive Bayes:
+- ROC-AUC: 0.703
+- Accuracy: 0.616
+- Recall: 0.240
+- F1-score: 0.361
+
+Both Gradient Boosting models achieved almost identical ROC-AUC, but Histogram Gradient Boosting had slightly better accuracy, recall and F1-score. Naive Bayes had higher precision (0.727) but much lower recall, meaning it missed more positive cases. These results show why accuracy or ROC-AUC alone is not enough to compare models. The locked test set was not evaluated.

@@ -1,35 +1,24 @@
-"""Hyperparameter tuning and nested cross-validation."""
+"""Optuna tuning and nested cross-validation."""
 
 import numpy as np
-import pandas as pd
 import optuna
+import pandas as pd
 
 from sklearn.base import clone
-from sklearn.metrics import get_scorer
 from sklearn.model_selection import cross_val_score
 
 
-optuna.logging.set_verbosity(optuna.logging.WARNING)
-
-
 def tune_pipeline(
-    pipeline,
-    X,
-    y,
-    cv,
-    scoring: str,
+    pipeline, X, y, cv, scorer,
     search_space: dict,
     n_trials: int,
     random_state: int,
     n_jobs: int = 1,
 ):
-    
-
     def objective(trial):
         params = {}
 
         for name, spec in search_space.items():
-
             if spec["type"] == "int":
                 params[name] = trial.suggest_int(
                     name,
@@ -54,9 +43,7 @@ def tune_pipeline(
 
             else:
                 raise ValueError(
-                    f"Unknown search-space type for {name}: "
-                    f"{spec['type']}. "
-                    "Options: int, float, categorical"
+                    f"Unknown search-space type: {spec['type']}"
                 )
 
         candidate = clone(pipeline).set_params(**params)
@@ -66,7 +53,7 @@ def tune_pipeline(
             X,
             y,
             cv=cv,
-            scoring=scoring,
+            scoring=scorer,
             n_jobs=n_jobs,
         )
 
@@ -75,7 +62,7 @@ def tune_pipeline(
             float(scores.std(ddof=1)),
         )
 
-        return scores.mean()
+        return float(scores.mean())
 
     study = optuna.create_study(
         direction="maximize",
@@ -84,14 +71,10 @@ def tune_pipeline(
         ),
     )
 
-    study.optimize(
-        objective,
-        n_trials=n_trials,
-    )
+    study.optimize(objective, n_trials=n_trials)
 
-    best_pipeline = (
-        clone(pipeline)
-        .set_params(**study.best_params)
+    best_pipeline = clone(pipeline).set_params(
+        **study.best_params
     )
 
     return best_pipeline, study
@@ -103,31 +86,25 @@ def nested_cross_validate(
     y,
     outer_cv,
     inner_cv,
-    scoring: str,
+    scorers: dict,
+    selection_metric: str,
     search_space: dict,
     n_trials: int,
     random_state: int,
     n_jobs: int = 1,
 ):
-     
-
-    scorer = get_scorer(scoring)
-
     rows = []
 
-    y_oof = np.empty(
-        len(X),
-        dtype=np.asarray(y).dtype,
+    oof_proba = np.full(
+        len(X), np.nan, dtype=float
     )
 
     for fold, (train_idx, val_idx) in enumerate(
         outer_cv.split(X, y),
         start=1,
     ):
-
         X_train = X.iloc[train_idx]
         y_train = y.iloc[train_idx]
-
         X_val = X.iloc[val_idx]
         y_val = y.iloc[val_idx]
 
@@ -136,74 +113,75 @@ def nested_cross_validate(
             X_train,
             y_train,
             inner_cv,
-            scoring,
+            scorers[selection_metric],
             search_space,
             n_trials,
             random_state,
             n_jobs,
         )
 
-        best_pipeline.fit(
-            X_train,
-            y_train,
+        best_pipeline.fit(X_train, y_train)
+
+        train_score = scorers[selection_metric](
+            best_pipeline, X_train, y_train
         )
 
-        train_score = scorer(
-            best_pipeline,
-            X_train,
-            y_train,
-        )
+        val_scores = {
+            name: scorer(best_pipeline, X_val, y_val)
+            for name, scorer in scorers.items()
+        }
 
-        val_score = scorer(
-            best_pipeline,
-            X_val,
-            y_val,
-        )
+        classes = list(best_pipeline.classes_)
 
-        y_oof[val_idx] = best_pipeline.predict(
+        if 1 not in classes:
+            raise ValueError("Expected binary classes 0 and 1")
+
+        oof_proba[val_idx] = best_pipeline.predict_proba(
             X_val
+        )[:, classes.index(1)]
+
+        rows.append({
+            "fold": fold,
+            "train": train_score,
+            "validation": val_scores[selection_metric],
+            "gap": (
+                train_score - val_scores[selection_metric]
+            ),
+            **val_scores,
+            "inner_best": study.best_value,
+            **study.best_params,
+        })
+
+    if np.isnan(oof_proba).any():
+        raise ValueError(
+            "Nested CV did not predict every row"
         )
 
-        rows.append(
-            {
-                "fold": fold,
-                "train": train_score,
-                "validation": val_score,
-                "gap": train_score - val_score,
-                "inner_best": study.best_value,
-                **study.best_params,
-            }
-        )
-
-    return pd.DataFrame(rows), y_oof
+    return pd.DataFrame(rows), oof_proba
 
 
 def tuning_report(
     study,
     nested_scores: pd.DataFrame,
-    scoring: str = "accuracy",
+    selection_metric: str,
     top: int = 5,
 ) -> str:
 
     trials = study.trials_dataframe(
-        attrs=(
-            "number",
-            "value",
-            "params",
-            "user_attrs",
-        )
+        attrs=("number", "value", "params", "user_attrs")
     )
 
     trials = trials.rename(
-        columns=lambda c:
-        c.replace("params_", "")
-        .replace("user_attrs_", "")
+        columns=lambda c: (
+            c.replace("params_", "")
+            .replace("user_attrs_", "")
+        )
     )
 
     trials = trials.rename(
         columns={
             "number": "trial",
-            "value": f"mean {scoring}",
+            "value": f"mean {selection_metric}",
         }
     )
 
@@ -214,44 +192,30 @@ def tuning_report(
         (
             "Tuning on the whole development set "
             f"({len(study.trials)} Optuna trials, "
-            f"metric: {scoring})"
+            f"metric: {selection_metric})"
         ),
         f"Best hyperparameters: {study.best_params}",
         (
-            f"Best mean CV score:   "
-            f"{study.best_value:.3f}  "
-            "(the maximum over all trials -- optimistic)"
+            f"Best mean CV score: {study.best_value:.3f} "
+            "(maximum over trials; optimistic)"
         ),
         "",
         f"Top {top} trials:",
-        trials
-        .sort_values(
-            f"mean {scoring}",
+        trials.sort_values(
+            f"mean {selection_metric}",
             ascending=False,
-        )
-        .head(top)
-        .to_string(
+        ).head(top).to_string(
             index=False,
             float_format=lambda v: f"{v:.3f}",
         ),
         "",
         "Optimism check (nested CV):",
+        f"  mean inner_best = {inner:.3f}",
+        f"  mean honest outer validation = {outer:.3f}",
         (
-            "  tuning score inside the outer folds "
-            f"(inner_best) mean = {inner:.3f}"
-        ),
-        (
-            "  honest score on the outer folds "
-            f"(validation)     mean = {outer:.3f}"
-        ),
-        (
-            f"  optimism = {inner - outer:+.3f}   "
-            "-> report the honest one"
+            f"  optimism = {inner - outer:+.3f} "
+            "(report the honest outer score)"
         ),
     ]
 
-    text = "\n".join(lines)
-
-    print(text)
-
-    return text
+    return "\n".join(lines)

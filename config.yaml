@@ -84,7 +84,16 @@ cv:
   n_splits: 5
   shuffle: true
   random_state: 42
-  scoring: "accuracy"
+  metrics:
+    - "accuracy"
+    - "balanced_accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "fbeta_2"
+    - "roc_auc"
+    - "average_precision"
+  selection_metric: "roc_auc"
   n_jobs: 1
 
 
@@ -115,12 +124,12 @@ preprocessing:
 
 
 model:
-  type: "oblique_random_forest"
+  type: "gradient_boosting"
   params:
     n_estimators: 100
-    n_components: 10
+    learning_rate: 0.1
+    max_depth: 3
     random_state: 42
-    n_jobs: -1
 
 
 tuning:
@@ -199,6 +208,66 @@ tuning:
         high: 1.0
         log: true
 
+    gradient_boosting:
+      model__n_estimators:
+        type: int
+        low: 25
+        high: 500
+        log: true
+      model__learning_rate:
+        type: float
+        low: 0.01
+        high: 0.5
+        log: true
+      model__max_depth:
+        type: int
+        low: 1
+        high: 6
+      model__min_samples_leaf:
+        type: int
+        low: 1
+        high: 200
+        log: true
+      model__subsample:
+        type: float
+        low: 0.5
+        high: 1.0
+
+    hist_gradient_boosting:
+      model__max_iter:
+        type: int
+        low: 25
+        high: 500
+        log: true
+      model__learning_rate:
+        type: float
+        low: 0.01
+        high: 0.5
+        log: true
+      model__max_leaf_nodes:
+        type: int
+        low: 2
+        high: 63
+        log: true
+      model__min_samples_leaf:
+        type: int
+        low: 5
+        high: 200
+        log: true
+      model__l2_regularization:
+        type: float
+        low: 0.000001
+        high: 10.0
+        log: true
+
+    naive_bayes:
+      model__var_smoothing:
+        type: float
+        low: 0.000000000001
+        high: 0.1
+        log: true
+
 
 output:
   results_dir: "results"
+  scoreboard: "results/runs.csv"

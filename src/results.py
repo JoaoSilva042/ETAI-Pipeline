@@ -1,54 +1,86 @@
-"""
-Saving each run's results to disk.
+"""Save experiment reports and CSV scoreboard."""
 
-Printing to the terminal is fine while you're watching it happen, but it's gone the moment you scroll past it or close the window. This module writes the full report (accuracy, classification report, fairness table) to a timestamped file in `results/` instead, so youcan open it again later, or compare two runs side by side after changing something in config.yaml.
-"""
 import os
 from datetime import datetime
 
+import pandas as pd
 
-def save_run(results_dir: str, config: dict, report_text: str) -> str:
-    """
-    Writes one run's full report to a timestamped .txt file inside
-    `results_dir` (created automatically if it doesn't exist yet) and
-    returns the path that was written.
-    """
-    os.makedirs(results_dir, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = os.path.join(results_dir, f"run_{timestamp}.txt")
+def save_scores(path: str, row: dict) -> pd.DataFrame:
+    os.makedirs(
+        os.path.dirname(path) or ".",
+        exist_ok=True,
+    )
 
-    cv = config["cv"]
-
-    tuning = config.get("tuning", {})
-
-    if tuning.get("enabled", False):
-        tuning_line = (
-            f"Tuning: enabled=True  "
-            f"trials={tuning['n_trials']}  "
-            f"inner_folds={tuning['n_splits']}  "
-            f"random_state={tuning['random_state']}\n"
+    if os.path.exists(path):
+        runs = pd.read_csv(
+            path, dtype={"run": str}
         )
     else:
-        tuning_line = "Tuning: enabled=False\n"
+        runs = pd.DataFrame()
+
+    runs = pd.concat(
+        [runs, pd.DataFrame([row])],
+        ignore_index=True,
+    )
+
+    runs.to_csv(path, index=False)
+
+    return runs
+
+
+def save_run(
+    results_dir: str,
+    config: dict,
+    report_text: str,
+    run_id: str = None,
+) -> str:
+
+    os.makedirs(results_dir, exist_ok=True)
+
+    run_id = run_id or datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    path = os.path.join(
+        results_dir,
+        f"run_{run_id}.txt",
+    )
+
+    cv = config["cv"]
+    tuning = config.get("tuning", {})
+
+    if tuning.get("enabled"):
+        tuning_line = (
+            f"Tuning: enabled=True "
+            f"trials={tuning['n_trials']} "
+            f"inner_folds={tuning['n_splits']} "
+            f"random_state={tuning['random_state']}"
+        )
+    else:
+        tuning_line = "Tuning: enabled=False"
 
     header = (
-        f"Run: {timestamp}\n"
-        f"Model: {config['model']['type']}  params={config['model'].get('params')}\n"
-        f"Preprocessing: encoder={config['preprocessing']['encoder']}  "
+        f"Run: {run_id}\n"
+        f"Model: {config['model']['type']} "
+        f"params={config['model'].get('params')}\n"
+        f"Preprocessing: "
+        f"encoder={config['preprocessing']['encoder']} "
         f"scaler={config['preprocessing']['scaler']}\n"
-        f"CV: {cv['n_splits']} stratified folds  "
-        f"shuffle={cv.get('shuffle', True)}  "
-        f"random_state={cv.get('random_state')}  "
-        f"metric={cv.get('scoring', 'accuracy')}\n"
-        + tuning_line
-        + f"Locked test set: size={config['test_set']['size']}  "
-        f"random_state={config['test_set']['random_state']}  "
+        f"CV: {cv['n_splits']} stratified folds "
+        f"shuffle={cv.get('shuffle', True)} "
+        f"random_state={cv.get('random_state')} "
+        f"metrics={cv['metrics']} "
+        f"selection_metric={cv['selection_metric']}\n"
+        f"{tuning_line}\n"
+        f"Locked test set: "
+        f"size={config['test_set']['size']} "
+        f"random_state={config['test_set']['random_state']} "
         f"(not evaluated)\n"
         + "=" * 60 + "\n\n"
     )
 
-    with open(path, "w") as f:
-        f.write(header + report_text)
+    with open(path, "w", encoding="utf-8") as out:
+        out.write(header + report_text)
 
     return path
