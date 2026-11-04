@@ -200,3 +200,16 @@ Gaussian Naive Bayes:
 - F1-score: 0.361
 
 Both Gradient Boosting models achieved almost identical ROC-AUC, but Histogram Gradient Boosting had slightly better accuracy, recall and F1-score. Naive Bayes had higher precision (0.727) but much lower recall, meaning it missed more positive cases. These results show why accuracy or ROC-AUC alone is not enough to compare models. The locked test set was not evaluated.
+
+## Week 08 - XGBoost and Feature Selection
+
+This week, I added XGBoost and a VoteSelector that combines Random Forest, Gradient Boosting, and Logistic Regression (L1) to select features. I also added `min_votes` to Optuna's tuning.
+
+Results (30 trials, nested 5-fold CV, ROC-AUC):
+- Without feature selection: 0.727 ± 0.016
+- With feature selection: 0.725 ± 0.013
+- Corrected paired t-test: p ≈ 0.448
+- Selected features: 4 out of 10 
+
+Feature selection reduced the number of features from 10 to 4, but the ROC-AUC was slightly worse. The difference wasn't statistically significant, so there's no clear benefit from using feature selection here, especially considering the extra training time. For now, I'd stick with XGBoost without feature selection.
+

@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+
 import optuna
 import pandas as pd
 import yaml
@@ -85,6 +86,9 @@ def main():
     run = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_type = config["model"]["type"]
 
+    selection_config = config.get("feature_selection", {})
+    selection_enabled = selection_config.get("enabled", False)
+
     # Load and clean data
     df = load_data(config["data"]["path"])
     df = clean_dataset(df, config["diagnostics"])
@@ -157,6 +161,7 @@ def main():
     pipeline = build_pipeline(
         config["preprocessing"],
         config["model"],
+        selection_config=selection_config,
     )
 
     floor_pipeline = build_pipeline(
@@ -213,6 +218,10 @@ def main():
         f"{selection_metric} = {floor:.3f}"
     )
 
+    report += (
+        f"\n\nFeature selection: "
+        f"{'vote' if selection_enabled else 'off'}"
+    )
     final_scores = fold_scores
 
     # Hyperparameter tuning
@@ -231,6 +240,13 @@ def main():
         if model_type not in search_spaces:
             raise ValueError(
                 f"No tuning search space for '{model_type}'"
+            )
+
+        search_space = dict(search_spaces[model_type])
+
+        if selection_enabled:
+            search_space.update(
+                selection_config.get("search_space", {})
             )
 
         n_trials = tuning_config["n_trials"]
@@ -262,7 +278,7 @@ def main():
             inner_cv,
             scorers,
             selection_metric,
-            search_spaces[model_type],
+            search_space,
             n_trials,
             tuning_seed,
             n_jobs=n_jobs,
@@ -275,7 +291,7 @@ def main():
             y_dev,
             inner_cv,
             scorers[selection_metric],
-            search_spaces[model_type],
+            search_space,
             n_trials,
             tuning_seed,
             n_jobs=n_jobs,
@@ -334,6 +350,22 @@ def main():
     # Final refit
     pipeline.fit(X_dev, y_dev)
 
+    if selection_enabled:
+        selector = pipeline.named_steps["select"]
+        all_features = pipeline.named_steps["prep"].get_feature_names_out()
+        kept = selector.get_feature_names_out(all_features)
+
+        selection_summary = (
+            f"Feature selection: min_votes={selector.min_votes}; "
+            f"kept {len(kept)}/{len(all_features)} features: "
+            f"{', '.join(kept)}"
+        )
+    else:
+        selection_summary = "Feature selection: off"
+
+    print(selection_summary)
+    report += f"\n\n{selection_summary}"
+
     refit = (
         f"Final model: {model_type} refit on "
         f"all {len(X_dev)} development rows."
@@ -350,11 +382,15 @@ def main():
 
     # Save results to scoreboard
     row = {
-        "run": run,
-        "data": config["data"]["path"],
-        "comparison_key": comparison_key(config),
-        "model": model_type,
-        "tuned": tuning_enabled,
+    "run": run,
+    "data": config["data"]["path"],
+    "comparison_key": comparison_key(config),
+    "model": model_type,
+    "feature_selection": (
+        f"min_votes {pipeline.named_steps['select'].min_votes}"
+        if selection_enabled else "off"
+    ),
+    "tuned": tuning_enabled,
         "n_trials": (
             int(tuning_config["n_trials"])
             if tuning_enabled else 0
@@ -409,7 +445,7 @@ def main():
 
     print(
         comparable_runs[
-            ["run", "model", "tuned", "metric", "mean", "std"]
+            ["run", "model",  "feature_selection", "tuned", "metric", "mean", "std"]
         ]
         .sort_values("mean", ascending=False)
         .to_string(index=False)
@@ -425,6 +461,7 @@ def main():
 
     print(f"\nFull report saved to {path}")
     print(f"Scoreboard saved to {scoreboard_path}")
+    
 
 
 if __name__ == "__main__":
