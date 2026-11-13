@@ -196,21 +196,20 @@ def fairness_report(
         np.asarray(oof_proba) >= threshold
     ).astype(int)
 
-    df["y_pred_compas"] = (
-        df["score_text"] != "Low"
-    ).astype(int)
+    comparisons = [("Our model", "y_pred_model")]
+
+    if "score_text" in df.columns:
+        df["y_pred_dataset"] = (df["score_text"] != "Low").astype(int)
+        comparisons.append(("COMPAS's own score", "y_pred_dataset"))
 
     lines = [
         f"False positive rate by {sensitive_attr}",
-        "(share of people who did NOT reoffend, "
-        "but were predicted to)",
+        "(hare of true class 0 predicted as class 1)",
         "",
     ]
 
-    for label, col in [
-        ("Our model", "y_pred_model"),
-        ("COMPAS's own score", "y_pred_compas"),
-    ]:
+    for label, col in comparisons:
+        
         lines.append(f"  {label}:")
 
         for group, subset in df.groupby(sensitive_attr):

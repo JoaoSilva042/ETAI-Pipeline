@@ -1,0 +1,63 @@
+Run: 20261113_115132
+Model: xgboost params={'n_estimators': 300, 'learning_rate': 0.05, 'max_depth': 4, 'random_state': 42, 'n_jobs': -1}
+Preprocessing: encoder=target scaler=standard
+CV: 5 stratified folds shuffle=True random_state=42 metrics=['accuracy', 'balanced_accuracy', 'precision', 'recall', 'f1', 'fbeta_2', 'roc_auc', 'average_precision'] selection_metric=roc_auc
+Tuning: enabled=False
+Locked test set: size=0.2 random_state=42 (not evaluated)
+============================================================
+
+Hyperparameters from config.yaml: {'n_estimators': 300, 'learning_rate': 0.05, 'max_depth': 4, 'random_state': 42, 'n_jobs': -1}
+
+Cross-validation (5 stratified folds, selection metric: roc_auc)
+
+ fold  train  validation   gap  accuracy  balanced_accuracy  precision  recall    f1  fbeta_2  roc_auc  average_precision
+    1  0.975       0.907 0.068     0.861              0.771      0.770   0.598 0.673    0.626    0.907              0.792
+    2  0.977       0.903 0.075     0.844              0.735      0.747   0.526 0.617    0.559    0.903              0.768
+    3  0.973       0.930 0.043     0.884              0.805      0.829   0.652 0.730    0.681    0.930              0.835
+    4  0.981       0.879 0.102     0.841              0.737      0.725   0.539 0.618    0.568    0.879              0.753
+    5  0.976       0.907 0.069     0.859              0.777      0.751   0.617 0.678    0.640    0.907              0.795
+
+                   mean   std
+accuracy          0.858 0.017
+balanced_accuracy 0.765 0.029
+precision         0.764 0.039
+recall            0.587 0.053
+f1                0.663 0.047
+fbeta_2           0.615 0.051
+roc_auc           0.905 0.018
+average_precision 0.788 0.031
+
+roc_auc: train-validation gap mean = +0.071
+
+No-model floor (dummy, same folds): roc_auc = 0.500
+
+Feature selection: off
+
+Out-of-fold predictions, development set (threshold 0.5):
+
+        predicted 0  predicted 1
+true 0         3444          207
+true 1          475          674
+
+              precision    recall  f1-score   support
+
+         0.0       0.88      0.94      0.91      3651
+         1.0       0.77      0.59      0.66      1149
+
+    accuracy                           0.86      4800
+   macro avg       0.82      0.76      0.79      4800
+weighted avg       0.85      0.86      0.85      4800
+
+
+False positive rate by sex
+(hare of true class 0 predicted as class 1)
+
+  Our model:
+    Female               FPR = 0.02  (n=1390)
+    Male                 FPR = 0.08  (n=2261)
+
+
+Feature selection: off
+
+Final model: xgboost refit on all 4800 development rows.
+Locked test set: 1200 rows set aside, not evaluated.

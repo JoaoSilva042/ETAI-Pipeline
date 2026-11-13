@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import sys
 
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,8 @@ import yaml
 from sklearn.model_selection import StratifiedKFold
 
 from src.data import load_data
+
+from src.predict import predict_new_data
 
 from src.preprocessing import (
     clean_dataset,
@@ -81,7 +84,11 @@ def comparison_key(config: dict) -> str:
 
 
 def main():
-    config = load_config()
+
+    if len(sys.argv) > 1:
+        config = load_config(sys.argv[1])
+    else:  
+        config = load_config()
 
     run = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_type = config["model"]["type"]
@@ -461,6 +468,12 @@ def main():
 
     print(f"\nFull report saved to {path}")
     print(f"Scoreboard saved to {scoreboard_path}")
+
+    #New data predictions
+
+    if "new_data_path" in config["data"]:
+        preds = predict_new_data(pipeline, config)
+        print(f"Predictions saved: {len(preds)} rows -> {config['data']['predictions_path']}")
     
 
 

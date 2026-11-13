@@ -213,3 +213,23 @@ Results (30 trials, nested 5-fold CV, ROC-AUC):
 
 Feature selection reduced the number of features from 10 to 4, but the ROC-AUC was slightly worse. The difference wasn't statistically significant, so there's no clear benefit from using feature selection here, especially considering the extra training time. For now, I'd stick with XGBoost without feature selection.
 
+## Week 9 
+
+
+## Option A: Adult income
+
+Left `race` out of the sensitive features because in this dataset there's a big wage difference between genders that is  worth studying
+
+### How to run
+python main.py                     
+python main.py config_adult.yaml   # Adult
+
+
+### Results (5-fold CV, tuning off)
+| Run | ROC-AUC | Accuracy | F1 |
+|---|---|---|---|
+| Meta | ≥ 0.90 | ≥ 0.855 | ≥ 0.66 |
+| XGBoost, sem feature selection | 0.905 | 0.858 | 0.663 |
+| XGBoost + feature selection | 0.913 | 0.864 | 0.686 |
+
+Features kept (8/37): age, education_num, capital_gain, capital_loss, hours_per_week, marital_status, occupation, relationship.
