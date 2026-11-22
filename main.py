@@ -6,6 +6,8 @@ import sys
 
 from datetime import datetime
 from pathlib import Path
+import joblib
+import os
 
 
 import optuna
@@ -387,6 +389,13 @@ def main():
 
     report += f"\n\n{refit}\n{locked}\n"
 
+    output = config.get("output", {})
+    model_path = output.get("model_path", "models/model.joblib")
+    os.makedirs(os.path.dirname(model_path) or ".", exist_ok=True)
+    pipeline.set_params(memory=None)
+    joblib.dump(pipeline, model_path)
+    print(f"Model saved to {model_path}")
+
     # Save results to scoreboard
     row = {
     "run": run,
@@ -404,6 +413,7 @@ def main():
         ),
         "encoder": config["preprocessing"]["encoder"],
         "scaler": config["preprocessing"]["scaler"],
+        "imputer": config["preprocessing"].get("imputation", {}).get("numeric_strategy", "median"),
         "params": str(config["model"].get("params")),
         "tuned_params": (
             str(study.best_params) if study else ""
@@ -432,7 +442,6 @@ def main():
         },
     }
 
-    output = config.get("output", {})
 
     scoreboard_path = output.get(
         "scoreboard", "results/runs.csv"
@@ -452,7 +461,7 @@ def main():
 
     print(
         comparable_runs[
-            ["run", "model",  "feature_selection", "tuned", "metric", "mean", "std"]
+            ["run", "model", "imputer", "feature_selection", "tuned", "metric", "mean", "std"]
         ]
         .sort_values("mean", ascending=False)
         .to_string(index=False)

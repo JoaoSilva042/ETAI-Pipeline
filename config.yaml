@@ -122,6 +122,9 @@ preprocessing:
   imputation:
     numeric_strategy: "median"
     categorical_strategy: "most_frequent"
+    n_neighbors: 5                                  # knn
+    max_iter: 10                                    # iterative, random_forest
+    n_estimators: 50   
 
 
 
@@ -285,6 +288,7 @@ tuning:
 output:
   results_dir: "results"
   scoreboard: "results/runs.csv"
+  model_path: "models/model.joblib"
 
 
 feature_selection:

@@ -215,7 +215,6 @@ Feature selection reduced the number of features from 10 to 4, but the ROC-AUC w
 
 ## Week 9 
 
-
 ## Option A: Adult income
 
 Left `race` out of the sensitive features because in this dataset there's a big wage difference between genders that is  worth studying
@@ -233,3 +232,24 @@ python main.py config_adult.yaml   # Adult
 | XGBoost + feature selection | 0.913 | 0.864 | 0.686 |
 
 Features kept (8/37): age, education_num, capital_gain, capital_loss, hours_per_week, marital_status, occupation, relationship.
+
+## Week 10 - Missing Values and Deployment
+
+
+
+Results:
+
+| Imputer | ROC-AUC | Wins vs median | p-value |
+|---|---|---|---|
+| median | 0.724 ± 0.017 | - | - |
+| knn | 0.724 ± 0.016 | 2/5 | 0.966 |
+| iterative | 0.724 ± 0.017 | 3/5 | 0.936 |
+| random_forest | 0.723 ± 0.015 | 2/5 | 0.624 |
+
+Missing values: I keep the median imputer. None of the other imputers improved the ROC-AUC. Since they perform the same, i chose the simplest and fastest one. exi
+
+Predicting new data:
+
+python predict.py data/compas_new_people.csv predictions.csv
+
+The output file has one row per person, with `id`, `probability` (of reoffending) and `prediction` (1 if probability ≥ 0.5).

@@ -67,6 +67,7 @@ def save_run(
         f"Preprocessing: "
         f"encoder={config['preprocessing']['encoder']} "
         f"scaler={config['preprocessing']['scaler']}\n"
+        f"imputer={config['preprocessing'].get('imputation', {}).get('numeric_strategy', 'median')}\n"
         f"CV: {cv['n_splits']} stratified folds "
         f"shuffle={cv.get('shuffle', True)} "
         f"random_state={cv.get('random_state')} "
